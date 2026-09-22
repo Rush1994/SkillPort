@@ -20,6 +20,9 @@ func WorkingFiles(root string) ([]File, error) {
 	if err != nil {
 		return nil, errs.New(6, "Invalid local directory.")
 	}
+	if root, err = filepath.EvalSymlinks(root); err != nil {
+		return nil, errs.New(6, "Local directory is missing.")
+	}
 	if err = CheckParents(root); err != nil {
 		return nil, err
 	}

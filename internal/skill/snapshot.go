@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -179,6 +180,11 @@ func Scan(root string, strict bool) (Snapshot, error) {
 	if err != nil {
 		return s, errs.New(6, "Invalid skill directory.")
 	}
+	// macOS exposes /var as a symlink to /private/var. Resolve only the
+	// caller-supplied root and continue rejecting links inside the skill tree.
+	if root, err = filepath.EvalSymlinks(root); err != nil {
+		return s, errs.New(6, "Skill directory is missing.")
+	}
 	if err = CheckParents(root); err != nil {
 		return s, err
 	}
@@ -328,9 +334,32 @@ func Scan(root string, strict bool) (Snapshot, error) {
 	return s, nil
 }
 
+// canonicalParentPath resolves only a macOS root-level system alias such as
+// /var -> /private/var. It deliberately leaves deeper components untouched so
+// CheckParents still rejects links in user-controlled paths.
+func canonicalParentPath(p string) (string, error) {
+	p, err := filepath.Abs(p)
+	if err != nil || runtime.GOOS != "darwin" {
+		return p, err
+	}
+	parts := strings.SplitN(strings.TrimPrefix(p, string(filepath.Separator)), string(filepath.Separator), 2)
+	if len(parts) == 0 || parts[0] == "" {
+		return p, nil
+	}
+	top := string(filepath.Separator) + parts[0]
+	resolved, err := filepath.EvalSymlinks(top)
+	if err != nil || resolved == top {
+		return p, nil
+	}
+	if len(parts) == 1 {
+		return resolved, nil
+	}
+	return filepath.Join(resolved, parts[1]), nil
+}
+
 // CheckParents rejects any existing link/reparse-point ancestor, including the root.
 func CheckParents(p string) error {
-	p, err := filepath.Abs(p)
+	p, err := canonicalParentPath(p)
 	if err != nil {
 		return errs.New(6, "Invalid local path.")
 	}
