@@ -1,0 +1,40 @@
+name: build-and-test
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go mod verify
+      - run: go vet ./...
+      - run: go test ./...
+      - run: go run ./cmd/skillport --help
+      - run: go run ./cmd/skillport version --format json
+  cross-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - {goos: windows, goarch: amd64}
+          - {goos: linux, goarch: amd64}
+          - {goos: linux, goarch: arm64}
+          - {goos: darwin, goarch: arm64}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go build -trimpath -o dist/skillport-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/skillport
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'

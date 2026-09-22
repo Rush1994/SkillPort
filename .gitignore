@@ -1,0 +1,6 @@
+/dist/
+/coverage.out
+*.test
+
+.idea/
+.vscode/

@@ -1,0 +1,2 @@
+Hello, editable Skills.
+中文与空格路径用于后续往返测试。
