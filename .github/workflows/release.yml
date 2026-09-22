@@ -89,4 +89,9 @@ jobs:
             gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
               --title "SkillPort $RELEASE_TAG" \
               --notes "CI-built binaries for Windows amd64, Linux amd64/arm64, and macOS arm64."
+          while IFS= read -r asset; do
+            case "$asset" in
+              *.zip|*.tar.gz|skillport|skillport.exe) gh release delete-asset "$RELEASE_TAG" "$asset" --repo "$GITHUB_REPOSITORY" --yes ;;
+            esac
+          done < <(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')
           gh release upload "$RELEASE_TAG" release/* --repo "$GITHUB_REPOSITORY" --clobber
